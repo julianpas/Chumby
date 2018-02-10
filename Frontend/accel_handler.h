@@ -16,7 +16,11 @@ class AccelHandler : public MessageLoopClient {
   AccelHandler(MessageLoop* message_loop);
 
   virtual void OnLoopQuitting();
- private:
+  
+  static int GetX(int packed) { return (packed >> 16); }
+  static int GetY(int packed) { return ((packed & 0xff00) >> 8); }
+  static int GetZ(int packed) { return (packed & 0xff); }
+private:
   static void* InputThread(void* instance);
 
   MessageLoop* message_loop_;

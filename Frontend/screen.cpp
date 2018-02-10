@@ -142,7 +142,7 @@ Screen::Screen(std::string frame_buffer, int width, int height, int bpp)
 
   fb_buffer_ = static_cast<short*>(mmap(NULL, width_ * height_ * bpp_,
                                         PROT_READ | PROT_WRITE, MAP_SHARED,
-				        frame_buffer_, 0));
+                                        frame_buffer_, 0));
   if(fb_buffer_ == MAP_FAILED) {
     std::cout <<  "Unable to mmap screen";
     close(frame_buffer_);

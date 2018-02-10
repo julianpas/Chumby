@@ -70,14 +70,14 @@ void CalibDisplay::ComputeParams() {
                 (calib_points_[0][0] - calib_points_[2][0]) * (touch_points_[1][0] - touch_points_[2][0])) / K;
   params_[2] = (touch_points_[0][1] * (touch_points_[2][0] * calib_points_[1][0] - touch_points_[1][0] * calib_points_[2][0]) + 
                 touch_points_[1][1] * (touch_points_[0][0] * calib_points_[2][0] - touch_points_[2][0] * calib_points_[0][0]) + 
-		touch_points_[2][1] * (touch_points_[1][0] * calib_points_[0][0] - touch_points_[0][0] * calib_points_[1][0])) / K;
+                touch_points_[2][1] * (touch_points_[1][0] * calib_points_[0][0] - touch_points_[0][0] * calib_points_[1][0])) / K;
   params_[3] = ((calib_points_[0][1] - calib_points_[2][1]) * (touch_points_[1][1] - touch_points_[2][1]) - 
                 (calib_points_[1][1] - calib_points_[2][1]) * (touch_points_[0][1] - touch_points_[2][1])) / K;
   params_[4] = ((touch_points_[0][0] - touch_points_[2][0]) * (calib_points_[1][1] - calib_points_[2][1]) - 
                 (calib_points_[0][1] - calib_points_[2][1]) * (touch_points_[1][0] - touch_points_[2][0])) / K;
   params_[5] = (touch_points_[0][1] * (touch_points_[2][0] * calib_points_[1][1] - touch_points_[1][0] * calib_points_[2][1]) + 
                 touch_points_[1][1] * (touch_points_[0][0] * calib_points_[2][1] - touch_points_[2][0] * calib_points_[0][1]) + 
-		touch_points_[2][1] * (touch_points_[1][0] * calib_points_[0][1] - touch_points_[0][0] * calib_points_[1][1])) / K;
+                touch_points_[2][1] * (touch_points_[1][0] * calib_points_[0][1] - touch_points_[0][0] * calib_points_[1][1])) / K;
 
   FILE *f = fopen("/mnt/storage/jul/ts_calib.txt", "wt");
   std::cout << "Calib params : ";

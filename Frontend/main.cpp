@@ -10,6 +10,7 @@
 #include "message_loop.h"
 #include "message_queue.h"
 #include "radio.h"
+#include "lights.h"
 #include "screen.h"
 #include "touch_screen_controller.h"
 
@@ -37,6 +38,10 @@ int main(int argc, char **argv) {
   Clock clock(&manager);
   manager.AddTask(&clock);
 
+  Lights lights(&manager);
+  manager.AddTask(&lights);
+  
+  
   //Mario mario(&manager);
   //manager.AddTask(&mario);
 

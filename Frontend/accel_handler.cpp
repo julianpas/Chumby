@@ -39,7 +39,7 @@ void* AccelHandler::InputThread(void* instance) {
     msg = (xyz[0] << 16) + (xyz[1] << 8) + xyz[2];
     
     struct input_event ev;
-    ev.type = 0x43;
+    ev.type = EV_ACCEL;
     ev.code = ACC_XYZ;
     ev.value = msg;
     self->message_loop_->PostMessage(ev);

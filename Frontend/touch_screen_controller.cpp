@@ -71,7 +71,7 @@ bool TouchScreenController::OnEventReceived(const input_event& ev) {
     ne.code = BTN_TRIGGER;
     ne.value = 1;
     event_manager_->OnEventReceived(ne);
-    std::cout << "Touch event : x = " << current_x_ << " y = " << current_y_ << " pressing : " << touched_ << std::endl;
+    //std::cout << "Touch event : x = " << current_x_ << " y = " << current_y_ << " pressing : " << touched_ << std::endl;
   }
   return false;
 }
