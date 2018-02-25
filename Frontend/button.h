@@ -4,9 +4,24 @@
 
 class ScreenBuffer;
 
+class Button;
+
+typedef struct ButtonDefType {
+  int x; int y;
+  int w; int h;
+  int state;
+  int touch_extra;
+  std::string image;
+  std::string name;
+  void* instance;
+  Button* button;
+  bool (*callback)(void*);
+} ButtonDef;
+
 class Button {
  public:
   Button(int x, int y, int w, int h, const std::string& images, int state = 0, int touch_extra = 0);
+  Button(ButtonDef* button);
 
   void Draw() const;
 

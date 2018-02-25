@@ -21,6 +21,26 @@ Button::Button(int x, int y, int w, int h, const std::string& images, int state,
   }
 }
 
+Button::Button(ButtonDef* button) 
+    : x_(button->x), y_(button->y),
+    w_(button->w), h_(button->h),
+    touch_extra_(button->touch_extra),
+    state_(button->state),
+    callback_(button->callback),
+    param_(static_cast<void*>(button)),
+    enabled_(true) {
+  if (button->image.length()) {
+    BMP icons;
+    icons.ReadFromFile(button->image.c_str());
+    icons_ = new ScreenBuffer(icons.TellWidth(), icons.TellHeight(), 2);
+    for (int i = 0;i < icons.TellWidth(); ++i) {
+      for (int j = 0 ;j < icons.TellHeight(); ++j) {
+        icons_->PutPixel(i, j, Color(icons(i,j)->Red, icons(i,j)->Green, icons(i,j)->Blue));
+      }
+    }
+  }
+}
+
 void Button::Draw() const {
   if (!icons_)
     return;

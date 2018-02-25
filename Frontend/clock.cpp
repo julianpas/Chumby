@@ -61,7 +61,7 @@ Clock::Clock(EventManager* event_manager)
   ReadSettings();
 
   net_button_ = new Button(307, 0, 13, 13, "/mnt/storage/jul/new_system/net.bmp", 0, -2);
-  reading_light_ = new Button(240, 0, 40, 40, "/mnt/storage/jul/new_system/readinglight.bmp");
+  reading_light_ = new Button(240, 0, 40, 40, "/mnt/storage/jul/new_system/lightsbut.bmp");
   reading_light_->SetCallback(&Clock::OnReadingLightButton, static_cast<void*>(this));
   ceiling_light_ = new Button(80, 0, 40, 40, "/mnt/storage/jul/new_system/lightbulb.bmp");
   ceiling_light_->SetCallback(&Clock::OnCeilingLightButton, static_cast<void*>(this));
@@ -117,6 +117,7 @@ bool Clock::OnEventReceived(const input_event& ev) {
       setting_min_ = true;
     } else if (setting_min_) {
       setting_min_ = false;
+      alarm_active_ = true;
       active_ = true;
       SaveSettings();
     } else {
@@ -127,8 +128,11 @@ bool Clock::OnEventReceived(const input_event& ev) {
           ltm->tm_hour == alarm_hour_ && ltm->tm_min == alarm_min_) {
         alarm_snoozed_ = true;
       } else {
-        alarm_active_ = !alarm_active_;
-        SaveSettings();
+        system(reading_light_command_.c_str());
+        //reading_light_->SetState((reading_light_->GetState() + 1) % 2);
+        //force_draw_ = true;
+        // alarm_active_ = !alarm_active_;
+        // SaveSettings();
       }
     }
   } else if (ev.type == EV_REL && ev.code == REL_WHEEL) {
@@ -234,7 +238,7 @@ void* Clock::ClockThread(void* data) {
     pthread_mutex_lock(&self->data_lock_);
     if (self->active_) {
       if (!self->show_temps_ && !self->setting_hours_ && !self->setting_min_) {
-        if (frame % clock_redraw == 0) {
+        if (frame % clock_redraw == 0 || self->force_draw_) {
           gScreen->ClearRectangle(0,kClockLine,320,108);
           blink = !blink;
           if (blink)
@@ -248,7 +252,7 @@ void* Clock::ClockThread(void* data) {
         }
       } else {
         if (self->show_temps_) {
-          if (frame % date_redraw == 0) {
+          if (frame % date_redraw == 0 || self->force_draw_) {
             gScreen->ClearRectangle(0, 46, 320, 108);
             
             for (int i = 0; i < kTempBuckets; ++i) {
@@ -273,7 +277,7 @@ void* Clock::ClockThread(void* data) {
         }
       }
 
-      if (frame % date_redraw == 0) {
+      if (frame % date_redraw == 0 || self->force_draw_) {
         gScreen->ClearRectangle(0,kDateLine,319,40);
         gScreen->DrawDigit(0, kDateLine, kDateSize, kWhite, ltm->tm_mday / 10);
         gScreen->DrawDigit(7 *kDateSize, kDateLine, kDateSize, kWhite, ltm->tm_mday % 10);
@@ -517,7 +521,7 @@ void Clock::GetBedroomLights(Clock* self) {
           Json::CharReader* reader(builder.newCharReader());
           if (reader->parse(pos, pos + strlen(pos), &root, NULL)) {
             pthread_mutex_lock(&self->data_lock_);
-            self->reading_light_->SetState(root[self->reading_light_name_.c_str()]["state"]["any_on"].asBool() ? 1 : 0);
+            //self->reading_light_->SetState(root[self->reading_light_name_.c_str()]["state"]["any_on"].asBool() ? 1 : 0);
             self->ceiling_light_->SetState(root["Bedroom"]["state"]["any_on"].asBool() ? 1 : 0);
             pthread_mutex_unlock(&self->data_lock_);
           }
@@ -547,8 +551,13 @@ void Clock::SetBrightness() {
 bool Clock::OnAlarmButton(void* data) {
   Clock* self = reinterpret_cast<Clock*>(data);
 
-  self->active_ = false;
-  self->setting_hours_ = true;
+  if (self->alarm_active_) {
+    self->alarm_active_ = false;
+    self->SaveSettings();
+  } else {
+    self->active_ = false;
+    self->setting_hours_ = true;
+  }
   return true;
 }
 
@@ -580,9 +589,10 @@ bool Clock::OnCeilingLightButton(void* data) {
 bool Clock::OnReadingLightButton(void* data) {
   Clock* self = reinterpret_cast<Clock*>(data);
 
-  system(self->reading_light_command_.c_str());
+  self->event_manager_->SetActiveTask(self->event_manager_->GetTask("Lights"));
+  /*system(self->reading_light_command_.c_str());
   self->reading_light_->SetState((self->reading_light_->GetState() + 1) % 2);
-  self->force_draw_ = true;
+  self->force_draw_ = true;*/
   return true;
 }
 

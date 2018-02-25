@@ -3,6 +3,7 @@
 #include <auto_ptr.h>
 #include <pthread.h>
 
+#include "button.h"
 #include "easybmp/EasyBMP.h"
 #include "screen.h"
 #include "task_base.h"
@@ -19,14 +20,18 @@ class Radio : public TaskBase {
  private:
   TouchScreenController* touch_controller_;
   
-  void PlayRadio();
   void SetVolume();
   void DrawVolume();
+
+  static bool OnButton(void* data);
+  static bool OnClock(void* data);
   
-  int selected_radio_;
+  bool selected_radio_;
   int volume_;
   int previous_volume_;
   std::auto_ptr<ScreenBuffer> volume_bar_;
   std::auto_ptr<ScreenBuffer> volume_bar_off_;
-  std::auto_ptr<ScreenBuffer> background_;
+  
+  ButtonDef button_defs_[4];
+  std::auto_ptr<Button> clock_;
 };

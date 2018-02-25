@@ -26,6 +26,7 @@ class Lights : public TaskBase {
   static void GetLights(Lights* self);
 
   static bool OnButton(void* data);
+  static bool OnClock(void* data);
   
   pthread_t data_thread_;
   TouchScreenController* touch_controller_;
@@ -33,4 +34,5 @@ class Lights : public TaskBase {
   pthread_mutex_t data_lock_;
 
   std::vector<Button*> buttons_;
+  Button* clock_;
 };

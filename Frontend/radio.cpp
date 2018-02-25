@@ -2,26 +2,40 @@
 
 #include <stdlib.h>
 
+#include "button.h"
 #include "event_manager.h"
 #include "screen.h"
 
 namespace {
 
-const char kRadio1[] = "http://live.btvradio.bg/z-rock.mp3\"";
-const char kRadio2[] = "http://pulsar.atlantis.bg:8000/starfm\"";
-const char kRadio3[] = "http://darik.hothost.bg/low\"";
+const int kNumButtons = 4;
+  
+ButtonDef buttons[kNumButtons] = {
+  { 20, 40, 130, 90, 0, 0, "/mnt/storage/jul/new_system/zrock.bmp", "http://live.btvradio.bg/z-rock.mp3", NULL, NULL, NULL},
+  { 170, 40, 130, 90, 0, 0, "/mnt/storage/jul/new_system/starfm.bmp", "http://pulsar.atlantis.bg:8000/starfm", NULL, NULL, NULL},
+  { 20, 140, 130, 90, 0, 0, "/mnt/storage/jul/new_system/darik.bmp", "http://darik.hothost.bg/low", NULL, NULL, NULL},
+  { 170, 140, 130, 90, 0, 0, "/mnt/storage/jul/new_system/foundation.bmp", "http://94.26.63.158:8000/;?type=http&nocache=808", NULL, NULL, NULL}
+};
 
 }  // namespace
 
 Radio::Radio(EventManager* event_manager)
     : TaskBase(event_manager),
+      selected_radio_(false),
       volume_(210),
-      previous_volume_(100),
+      previous_volume_(0),
       volume_bar_(new ScreenBuffer(100, 40, 2)),
-      volume_bar_off_(new ScreenBuffer(100, 40, 2)),
-      background_(new ScreenBuffer(320, 240, 2)) {
-  previous_volume_ = 0;
+      volume_bar_off_(new ScreenBuffer(100, 40, 2)) {
   touch_controller_ = static_cast<TouchScreenController*>(event_manager->GetTask("TouchScreen Controller"));
+
+  for (int i = 0; i < kNumButtons; ++i) {
+    buttons[i].instance = static_cast<void*>(this);
+    buttons[i].callback = &Radio::OnButton;
+    buttons[i].button = new Button(&buttons[i]);
+  }
+  clock_.reset(new Button(320 - 37, 3, 34, 34, "/mnt/storage/jul/new_system/clock.bmp", 0 , 3));
+  clock_->SetCallback(&Radio::OnClock, static_cast<void*>(this));
+
   BMP volume_bar;
   volume_bar.ReadFromFile("/mnt/storage/jul/new_system/radio_v.bmp");
   for (int i = 0;i < 100; ++i)
@@ -32,11 +46,6 @@ Radio::Radio(EventManager* event_manager)
   for (int i = 0;i < 100; ++i)
     for (int j = 0 ;j < 40; ++j)
       volume_bar_off_->PutPixel(i, j, Color(volume_bar_off(i,j)->Red, volume_bar_off(i,j)->Green, volume_bar_off(i,j)->Blue));
-  BMP background;
-  background.ReadFromFile("/mnt/storage/jul/new_system/radio.bmp");
-  for (int i = 0;i < 320; ++i)
-    for (int j = 0 ;j < 240; ++j)
-      background_->PutPixel(i, j, Color(background(i,j)->Red, background(i,j)->Green, background(i,j)->Blue));
 }
 
 std::string Radio::GetName() { return std::string("Radio"); }
@@ -44,45 +53,30 @@ std::string Radio::GetName() { return std::string("Radio"); }
 bool Radio::OnEventReceived(const input_event& ev) {
   if (!HasFocus())
     return false;
-  
+
+  bool result = false;
+
   if (ev.type == EV_KEY && ev.code == BTN_TRIGGER) {
     if (!touch_controller_->IsTouching()) {
-      if (touch_controller_->GetX() > 280 && touch_controller_->GetY() < 40) {
-	event_manager_->SetActiveTask(event_manager_->GetTask("Clock"));
-      } else if (touch_controller_->GetX() > 30 && touch_controller_->GetY() > 50 &&
-	         touch_controller_->GetX() < 290 && touch_controller_->GetY() < 90) {
-	if (selected_radio_ == 1)
-	  selected_radio_ = 0;
-	else
-	  selected_radio_ = 1;
-	PlayRadio();
-      } else if (touch_controller_->GetX() > 30 && touch_controller_->GetY() > 96 &&
-	         touch_controller_->GetX() < 290 && touch_controller_->GetY() < 131) {
-	if (selected_radio_ == 2)
-	  selected_radio_ = 0;
-	else
-	  selected_radio_ = 2;
-	PlayRadio();
-      } else if (touch_controller_->GetX() > 30 && touch_controller_->GetY() > 138 &&
-	         touch_controller_->GetX() < 290 && touch_controller_->GetY() < 174) {
-	if (selected_radio_ == 3)
-	  selected_radio_ = 0;
-	else
-	  selected_radio_ = 3;
-	PlayRadio();
-      } else if (touch_controller_->GetX() < 100 && touch_controller_->GetY() < 40) {
-        volume_ = ((touch_controller_->GetX() - 4) * 155) / 91 + 100;
-	SetVolume();
+      for (int i = 0; i < kNumButtons; ++i) {
+        result |= buttons[i].button->OnPress(touch_controller_->GetX(), touch_controller_->GetY());
       }
-      return true;      
+      result |= clock_->OnPress(touch_controller_->GetX(), touch_controller_->GetY());
+      
+      if (touch_controller_->GetX() < 100 && touch_controller_->GetY() < 40) {
+        volume_ = ((touch_controller_->GetX() - 4) * 155) / 91 + 100;
+        SetVolume();
+        result = true;
+      }
+      return result;
     } else {
       if (touch_controller_->GetX() < 100 && touch_controller_->GetY() < 40) {
-        volume_ = ((touch_controller_->GetX() - 4) * 155 ) / 91 + 100;
-	DrawVolume();
-	return true;
+          volume_ = ((touch_controller_->GetX() - 4) * 155 ) / 91 + 100;
+        DrawVolume();
+        return true;
       }
       return false;
-    }      
+    }
   } else if (ev.type == EV_REL && ev.code == REL_WHEEL) {
     volume_ += ev.value > 0 ? 5 : -5;
     SetVolume();
@@ -94,31 +88,19 @@ bool Radio::OnEventReceived(const input_event& ev) {
 
 void Radio::OnReceiveFocus() {
   previous_volume_ = 100;
-  gScreen->Copy(*background_);
-  gScreen->FlipBuffer();  
+  BMP background;
+  background.ReadFromFile("/mnt/storage/jul/new_system/radio.bmp");
+  for (int i = 0;i < 320; ++i)
+    for (int j = 0 ;j < 240; ++j)
+      gScreen->PutPixel(i, j, Color(background(i,j)->Red, background(i,j)->Green, background(i,j)->Blue));
+    
+  for (int i = 0; i < kNumButtons; ++i)
+    buttons[i].button->Draw();
+  clock_->Draw();
 
-  std::cout << "Set volume now" << std::endl;
+  gScreen->FlipBuffer();
+
   SetVolume();
-}
-
-void Radio::PlayRadio() {
-  char cmd[100] = "btplay --passthru=\"play * ";
-  switch(selected_radio_) {
-    case 0:
-      system("btplay --passthru=\"stop\"");
-      return;
-    case 1:
-      strcat(cmd, kRadio1);
-      break;
-    case 2:
-      strcat(cmd, kRadio2);
-      break;
-    case 3:
-      strcat(cmd, kRadio3);
-      break;
-  }
-  std::cout << "Playing " << cmd << std::endl;
-  system(cmd);
 }
 
 void Radio::SetVolume() {
@@ -135,11 +117,40 @@ void Radio::DrawVolume() {
   int max = volume_ > previous_volume_ ? volume_ : previous_volume_;
   min = 4 + ((min-100) * 91) / 155;
   max = 4 + ((max-100) * 91) / 155;
-  std::cout << "Draw from " << min << " to " << max << std::endl;
   if (volume_ >= previous_volume_)
     gScreen->BitBlt(*volume_bar_, min, 0, max - min + 1, 40, min, 0);
   else
     gScreen->BitBlt(*volume_bar_off_, min, 0, max - min + 1, 40, min, 0);
   gScreen->FlipBuffer(); 
   previous_volume_ = volume_;
+}
+
+
+// static
+bool Radio::OnButton(void* data) {
+  ButtonDef* button = reinterpret_cast<ButtonDef*>(data);
+  Radio* self = reinterpret_cast<Radio*>(button->instance);
+
+  std::cout << button->name << std::endl;
+  
+  if (self->selected_radio_) {
+    system("btplay --passthru=\"stop\"");
+  } else {
+    char cmd[100];
+    sprintf(cmd, "btplay --passthru=\"play * %s\"", button->name.c_str());
+    std::cout << cmd << std::endl;
+    system(cmd);
+  }
+  self->selected_radio_ = !self->selected_radio_;
+
+  return true;
+}
+
+
+// static
+bool Radio::OnClock(void* data) {
+  Radio* self = reinterpret_cast<Radio*>(data);
+  
+  self->event_manager_->SetActiveTask(self->event_manager_->GetTask("Clock"));  
+  return true;
 }
