@@ -131,6 +131,9 @@ void* Lights::DataThread(void* data) {
 
 
 void Lights::DrawUI() {
+  if (!self->HasFocus())
+    return;
+  
   for (int i = 0; i < kNumButtons; ++i) {
     buttons_[i]->Draw();
   }
