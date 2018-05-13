@@ -9,6 +9,7 @@
 
 #include "easybmp/EasyBMP.h"
 #include "json/json/json.h"
+#include "httpclient/HTTPClient.h"
 #include "event_manager.h"
 #include "brightness_controller.h"
 #include "screen.h"
@@ -131,7 +132,7 @@ void* Lights::DataThread(void* data) {
 
 
 void Lights::DrawUI() {
-  if (!self->HasFocus())
+  if (!HasFocus())
     return;
   
   for (int i = 0; i < kNumButtons; ++i) {
@@ -143,6 +144,38 @@ void Lights::DrawUI() {
 
 // static
 void Lights::GetLights(Lights* self) {
+  HTTPClient client;
+  char* server_reply = new char[4096];
+  
+  HTTPText data(server_reply, 4096);
+  if (HTTP_OK == client.get("http://192.168.0.6/cgi/action.py?action=get_hue_groups", &data)) {
+    int len = strlen(server_reply);
+    if(len >= 0) {
+      std::cout << len << " " << server_reply << std::endl;
+      server_reply[len] = 0;
+      char *pos = strstr(server_reply, "{");
+      if (pos != NULL) {
+        Json::Value root;
+        Json::CharReaderBuilder builder;
+        Json::CharReader* reader(builder.newCharReader());
+        if (reader->parse(pos, pos + strlen(pos), &root, NULL)) {
+          pthread_mutex_lock(&self->data_lock_);
+          Json::ValueConstIterator iter = root.begin();
+          for (; iter != root.end(); ++iter) {
+            for (int i = 0; i < kNumButtons; ++i) {
+              if (lights[i].name == (*iter)["name"].asString()) {
+                lights[i].button->SetState((*iter)["state"]["any_on"].asBool() ? 1 : 0);
+              }
+            }
+          }
+          self->DrawUI();
+          pthread_mutex_unlock(&self->data_lock_);
+        }
+        delete reader;
+      }
+    }
+  }
+/*  
   const char request[] = "GET /cgi/action.py?action=get_hue_groups\n\n";
 
   int sock;
@@ -157,7 +190,6 @@ void Lights::GetLights(Lights* self) {
   server.sin_family = AF_INET;
   server.sin_port = htons(8000);
 
-  char* server_reply = new char[4096];
   if (connect(sock, (struct sockaddr*)&server, sizeof(server)) >= 0) {
     if(send(sock, request, strlen(request), 0) >= 0) {
       int len = recv(sock, server_reply, 4096, MSG_WAITALL);
@@ -186,7 +218,7 @@ void Lights::GetLights(Lights* self) {
       }
     }
   }
-  close(sock);
+  close(sock);*/
   delete[] server_reply;
 }
 
