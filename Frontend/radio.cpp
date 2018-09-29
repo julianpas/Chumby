@@ -8,13 +8,13 @@
 
 namespace {
 
-const int kNumButtons = 4;
+const int kNumButtons = 2;
   
 ButtonDef buttons[kNumButtons] = {
-  { 20, 40, 130, 90, 0, 0, "/mnt/storage/jul/new_system/zrock.bmp", "http://live.btvradio.bg/z-rock.mp3", NULL, NULL, NULL},
-  { 170, 40, 130, 90, 0, 0, "/mnt/storage/jul/new_system/starfm.bmp", "http://pulsar.atlantis.bg:8000/starfm", NULL, NULL, NULL},
-  { 20, 140, 130, 90, 0, 0, "/mnt/storage/jul/new_system/darik.bmp", "http://darik.hothost.bg/low", NULL, NULL, NULL},
-  { 170, 140, 130, 90, 0, 0, "/mnt/storage/jul/new_system/foundation.bmp", "http://94.26.63.158:8000/;?type=http&nocache=808", NULL, NULL, NULL}
+  { 20, 40, 130, 90, 0, 0, "/mnt/storage/jul/new_system/zrock.bmp", "http://46.10.150.243/z-rock.mp3", NULL, NULL, NULL},
+  //{ 170, 40, 130, 90, 0, 0, "/mnt/storage/jul/new_system/starfm.bmp", "http://pulsar.atlantis.bg:8000/starfm", NULL, NULL, NULL},
+  { 20, 140, 130, 90, 0, 0, "/mnt/storage/jul/new_system/darik.bmp", "http://darikradio.by.host.bg:8000/S2-128", NULL, NULL, NULL},
+  //{ 170, 140, 130, 90, 0, 0, "/mnt/storage/jul/new_system/foundation.bmp", "http://94.26.63.158:8000/;?type=http&nocache=808", NULL, NULL, NULL}
 };
 
 }  // namespace
@@ -80,6 +80,15 @@ bool Radio::OnEventReceived(const input_event& ev) {
   } else if (ev.type == EV_REL && ev.code == REL_WHEEL) {
     volume_ += ev.value > 0 ? 5 : -5;
     SetVolume();
+  } else if (ev.type == EV_KEY && ev.code == KEY_ENTER && ev.value == 0) {
+    if (selected_radio_) {
+      system("btplay --passthru=\"stop\"");
+    } else {
+      char cmd[100];
+      sprintf(cmd, "btplay --passthru=\"play * %s\"", buttons[0].name.c_str());
+      system(cmd);
+    }
+    selected_radio_ = !selected_radio_;
   } else {
     return false;
   }

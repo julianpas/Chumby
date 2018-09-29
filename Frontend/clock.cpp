@@ -14,6 +14,7 @@
 #include "accel_handler.h"
 #include "screen.h"
 #include "button.h"
+#include "tcp_connection.h"
 
 namespace {
 
@@ -45,9 +46,9 @@ Clock::Clock(EventManager* event_manager)
     night_brightness_(17),
     last_tilt_(0),
     tilting_(false),
-    tilting_up_(false),
-    tilting_down_(false),
     axis_(255), 
+    last_press_(0),
+    press_count_(0),
     temp_(0),
     last_temps_(0),
     show_temps_(false),
@@ -55,18 +56,19 @@ Clock::Clock(EventManager* event_manager)
   touch_controller_ = 
       static_cast<TouchScreenController*>(event_manager->GetTask("TouchScreen Controller"));
 
-  reading_light_command_ = 
-      "wget http://192.168.0.6:8000/cgi/action.py?action=jul_light -q -T 1 -t 1 -O - &";
+  reading_light_command_ = "jul_light";
 
   ReadSettings();
 
   net_button_ = new Button(307, 0, 13, 13, "/mnt/storage/jul/new_system/net.bmp", 0, -2);
-  reading_light_ = new Button(240, 0, 40, 40, "/mnt/storage/jul/new_system/lightsbut.bmp");
-  reading_light_->SetCallback(&Clock::OnReadingLightButton, static_cast<void*>(this));
+  all_lights_ = new Button(240, 0, 40, 40, "/mnt/storage/jul/new_system/lightsbut.bmp");
+  all_lights_->SetCallback(&Clock::OnAllLightsButton, static_cast<void*>(this));
   ceiling_light_ = new Button(80, 0, 40, 40, "/mnt/storage/jul/new_system/lightbulb.bmp");
   ceiling_light_->SetCallback(&Clock::OnCeilingLightButton, static_cast<void*>(this));
-  alarm_ = new Button(0, 0, 40, 40, "/mnt/storage/jul/new_system/alarm.bmp");
-  alarm_->SetCallback(&Clock::OnAlarmButton, static_cast<void*>(this));
+  //alarm_ = new Button(0, 0, 40, 40, "/mnt/storage/jul/new_system/alarm.bmp");
+  //alarm_->SetCallback(&Clock::OnAlarmButton, static_cast<void*>(this));
+  tv_button_ = new Button(0, 0, 40, 40, "/mnt/storage/jul/new_system/tvbut.bmp");
+  tv_button_->SetCallback(&Clock::OnTvButton, static_cast<void*>(this));
   night_mode_ = new Button(40, 0, 40, 40, "/mnt/storage/jul/new_system/night_mode.bmp");
   night_mode_->SetCallback(&Clock::OnNightModeButton, static_cast<void*>(this));
   radio_ = new Button(280, 0, 40, 40, "/mnt/storage/jul/new_system/radio_but.bmp");
@@ -105,11 +107,12 @@ bool Clock::OnEventReceived(const input_event& ev) {
 
   if (ev.type == EV_KEY && ev.code == BTN_TRIGGER && !touch_controller_->IsTouching()) {
     result = 
-        alarm_->OnPress(touch_controller_->GetX(), touch_controller_->GetY()) ||
+        //alarm_->OnPress(touch_controller_->GetX(), touch_controller_->GetY()) ||
         night_mode_->OnPress(touch_controller_->GetX(), touch_controller_->GetY()) ||
         ceiling_light_->OnPress(touch_controller_->GetX(), touch_controller_->GetY()) ||
-        reading_light_->OnPress(touch_controller_->GetX(), touch_controller_->GetY()) ||
+        all_lights_->OnPress(touch_controller_->GetX(), touch_controller_->GetY()) ||
         radio_->OnPress(touch_controller_->GetX(), touch_controller_->GetY()) ||
+        tv_button_->OnPress(touch_controller_->GetX(), touch_controller_->GetY()) ||
         temperature_->OnPress(touch_controller_->GetX(), touch_controller_->GetY());
   } else if (ev.type == EV_KEY && ev.code == KEY_ENTER && ev.value == 0) {
     if (setting_hours_) {
@@ -128,11 +131,14 @@ bool Clock::OnEventReceived(const input_event& ev) {
           ltm->tm_hour == alarm_hour_ && ltm->tm_min == alarm_min_) {
         alarm_snoozed_ = true;
       } else {
-        system(reading_light_command_.c_str());
-        //reading_light_->SetState((reading_light_->GetState() + 1) % 2);
-        //force_draw_ = true;
-        // alarm_active_ = !alarm_active_;
-        // SaveSettings();
+        timeval tv;
+        gettimeofday(&tv, NULL);
+        long now = tv.tv_sec * 10 + (tv.tv_usec / 100000);
+        if (now - last_press_ < 5)
+          press_count_++;
+        else
+          press_count_ = 1;
+        last_press_ = now;
       }
     }
   } else if (ev.type == EV_REL && ev.code == REL_WHEEL) {
@@ -153,36 +159,20 @@ bool Clock::OnEventReceived(const input_event& ev) {
       axis_ = avg;
     } else if (avg > 12 && avg < 20 && !tilting_) {
       tilting_ = true;
-      time_t now = time(NULL);
-      if (now - last_tilt_ < 10 && tilting_down_ == true) {
-        std::cout << "stop up" << std::endl;
-        system("wget http://192.168.0.18/stop --post-data='' -q -T 1 -t 1 -O - &");
-        tilting_down_ = false;
-      } else {
-        std::cout << "up" << std::endl;
-        system("wget http://192.168.0.18/up --post-data='' -q -T 1 -t 1 -O - &");
-        tilting_up_ = true;
-      }
+      std::cout << "up" << std::endl;
+      InvokeAction("bedroom_up");
       last_tilt_ = time(NULL);
     } else if (avg > 220 && avg < 230 && !tilting_) {
       tilting_ = true;
-      time_t now = time(NULL);
-      if (now - last_tilt_ < 10 && tilting_up_ == true) {
-        std::cout << "stop down" << std::endl;
-        system("wget http://192.168.0.18/stop --post-data='' -q -T 1 -t 1 -O - &");
-        tilting_up_ = false;
-      } else {
-        std::cout << "down" << std::endl;
-        system("wget http://192.168.0.18/down --post-data='' -q -T 1 -t 1 -O - &");
-        tilting_down_ = true;
-      }
+      std::cout << "down" << std::endl;
+      InvokeAction("bedroom_down");
       last_tilt_ = time(NULL);
     } else if ((avg > 250 || avg < 0) && tilting_) {
       tilting_ = false;
       time_t now = time(NULL);
       if (now - last_tilt_ > 2) {
         std::cout << "stop" << std::endl;
-        system("wget http://192.168.0.18/stop --post-data='' -q -T 1 -t 1 -O - &");
+        InvokeAction("bedroom_stop");
         last_tilt_ = 0;
       }
     }
@@ -211,6 +201,7 @@ void Clock::OnReceiveFocus() {
   }
   DrawUI();
   active_ = true;
+  force_draw_ = true;
 }
 
 
@@ -239,6 +230,7 @@ void* Clock::ClockThread(void* data) {
     if (self->active_) {
       if (!self->show_temps_ && !self->setting_hours_ && !self->setting_min_) {
         if (frame % clock_redraw == 0 || self->force_draw_) {
+          gScreen->ClearRectangle(125,0,112,40);
           gScreen->ClearRectangle(0,kClockLine,320,108);
           blink = !blink;
           if (blink)
@@ -254,6 +246,7 @@ void* Clock::ClockThread(void* data) {
         if (self->show_temps_) {
           if (frame % date_redraw == 0 || self->force_draw_) {
             gScreen->ClearRectangle(0, 46, 320, 108);
+            gScreen->DrawRectangle(10, 111, 300, 3, kGrey);
             
             for (int i = 0; i < kTempBuckets; ++i) {
               for (int j = 0; j < 18; j++) {
@@ -264,13 +257,26 @@ void* Clock::ClockThread(void* data) {
                     gScreen->DrawRectangle(16 + i * 6, 154 - j * 6, 5, 5, kBlue);
                 } else if (self->hums_[(self->last_temps_ + i + 1) % kTempBuckets] >= (30 + j * 3)) {
                   gScreen->DrawRectangle(16 + i * 6, 154 - j * 6, 5, 5, kGreen);
-                } else if (j == 7) {
-                  gScreen->DrawRectangle(16 + i * 6 + 1, 154 - j * 6 - 1, 3, 3, kGrey);
-                }
+                } 
               }
             }
             needs_draw = true;
           }
+          if (frame % clock_redraw == 0 || self->force_draw_) {
+            gScreen->ClearRectangle(125,0,112,40);
+            blink = !blink;
+            if (blink)
+              gScreen->DrawDigit(125 + 8 * kDateSize, 4, kDateSize, kWhite, 10);
+
+            if ((ltm->tm_hour % 12 ? ltm->tm_hour % 12 : 12) > 9)
+              gScreen->DrawDigit(125 - 4 * kDateSize, 4, kDateSize, kWhite, (ltm->tm_hour % 12 ? ltm->tm_hour % 12 : 12) / 10);
+            gScreen->DrawDigit(125 + 3 * kDateSize, 4, kDateSize, kWhite, (ltm->tm_hour % 12 ? ltm->tm_hour % 12 : 12) % 10);
+            gScreen->DrawDigit(125 + 14 * kDateSize, 4, kDateSize, kWhite, ltm->tm_min / 10);
+            gScreen->DrawDigit(125 + 21 * kDateSize, 4, kDateSize, kWhite, ltm->tm_min % 10);
+
+            needs_draw = true;
+          }
+          
         } else {
           self->DrawAlarmTime();
           needs_draw = true;
@@ -326,6 +332,29 @@ void* Clock::ClockThread(void* data) {
           (ltm->tm_hour != self->alarm_hour_ || ltm->tm_min != self->alarm_min_)) {
         self->alarm_snoozed_ = false;
       }
+      timeval tv;
+      gettimeofday(&tv, NULL);
+      long now = tv.tv_sec * 10 + (tv.tv_usec / 100000);
+      if (now - self->last_press_ > 5 && self->press_count_) {
+        switch (self->press_count_) {
+          case 1:
+            InvokeAction(self->reading_light_command_);
+            break;
+          case 2:
+            InvokeAction("bedroom_light");
+            break;
+          case 3:
+            InvokeAction("bedroom_stop");
+            break;
+          case 4:
+            InvokeAction("bedroom_pos_25");
+            break;
+          default:
+            break;
+        }
+
+        self->press_count_ = 0;
+      }
     }
     pthread_mutex_unlock(&self->data_lock_);
 
@@ -338,10 +367,12 @@ void* Clock::ClockThread(void* data) {
 // static
 void* Clock::DataThread(void* data) {
   Clock* self = reinterpret_cast<Clock*>(data);
+  
+  TcpConnection connection("192.168.0.6", 8000);
 
   while(true) {
-    GetBedroomTemp(self);
-    GetBedroomLights(self);
+    GetBedroomTemp(self, &connection);
+    GetBedroomLights(self, &connection);
     sleep(20);
   }
 
@@ -350,10 +381,7 @@ void* Clock::DataThread(void* data) {
 
 // static
 void* Clock::SunlightThread(void* /*data*/) {
-  system("wget http://192.168.0.18/up --post-data='' -q -T 1 -t 1 -O - &");
-  sleep(15);
-  system("wget http://192.168.0.18/stop --post-data='' -q -T 1 -t 1 -O - &");
-
+  InvokeAction("bedroom_pos_50");
   return NULL;
 }
 
@@ -385,27 +413,23 @@ void Clock::ReadSettings() {
     if (cmd[strlen(cmd)-1] == '\n')
       cmd[strlen(cmd) - 1] = 0;
     reading_light_command_ = cmd;
-    fgets(cmd, 400, f);
-    if (cmd[strlen(cmd)-1] == '\n')
-      cmd[strlen(cmd) - 1] = 0;
-    reading_light_name_ = cmd;
     fscanf(f, "%d %d", &normal_brightness_, &night_brightness_);
     fclose(f);
     std::cout << "Settings:\n\tReading light command: " << reading_light_command_ 
-              << "\n\tReading light name: " << reading_light_name_ 
               << "\n\tDefault normal brightness level: " << normal_brightness_ 
               << "\n\tDark brightness level: " << night_brightness_ << std::endl;
   }
 }
 
 void Clock::DrawUI() {
-  reading_light_->Draw();
+  all_lights_->Draw();
   ceiling_light_->Draw();
-  alarm_->SetState(alarm_active_ ? 1 : 0);
-  alarm_->Draw();
+  //alarm_->SetState(alarm_active_ ? 1 : 0);
+  //alarm_->Draw();
   night_mode_->SetState(night_mode_active_ ? 1 : 0);
   night_mode_->Draw();
   radio_->Draw();
+  tv_button_->Draw();
 
   time_t now = time(NULL);
   net_button_->SetState((now - last_temp_) > 120 ? 0 : 1);
@@ -429,109 +453,68 @@ void Clock::DrawAlarmTime() {
 }
 
 // static 
-void Clock::GetBedroomTemp(Clock* self) {
+void Clock::GetBedroomTemp(Clock* self, TcpConnection* connection) {
   const char request[] = "GET /cgi/action.py?action=bedroom_status\n\n";
 
-  int sock;
-  struct sockaddr_in server;
-  char* server_reply = new char[1024];
+  if (connection->connect() && connection->send(request)) {
+    std::string output;
+    connection->receive(10, &output);
+    Json::Value root;
+    if (TcpConnection::getJson(output, &root)) {
+      pthread_mutex_lock(&self->data_lock_);
+      self->temp_ = (int)(round(root["temperature"].asFloat() * 10));
 
-  //Create socket
-  sock = socket(AF_INET, SOCK_STREAM, 0);
-  if (sock == -1)
-    return;
+      if ((time(NULL) - self->last_temps_time_) > (kMinPerBucket * 60)) {
+        self->last_temps_time_ = time(NULL);
+        self->last_temps_++;
+        if (self->last_temps_ == kTempBuckets)
+          self->last_temps_ = 0;
+        self->measures_[self->last_temps_] = 0;
+      } 
+      self->temps_[self->last_temps_] = 
+          (self->measures_[self->last_temps_] * self->temps_[self->last_temps_] +
+              self->temp_) / 
+          (self->measures_[self->last_temps_] + 1);
+      self->hums_[self->last_temps_] =
+          (self->measures_[self->last_temps_] * self->hums_[self->last_temps_] +
+              (int)(round(root["humidity"].asFloat()))) / 
+          (self->measures_[self->last_temps_] + 1);
+      self->measures_[self->last_temps_]++;
 
-  server.sin_addr.s_addr = inet_addr("192.168.0.6");
-  server.sin_family = AF_INET;
-  server.sin_port = htons(8000);
-
-  if (connect(sock, (struct sockaddr*)&server, sizeof(server)) >= 0) {
-    if(send(sock, request, strlen(request), 0) >= 0) {
-      if(recv(sock, server_reply, 200, 0) >= 0) {
-        char *pos = strstr(server_reply, "{");
-        if (pos != NULL) {
-          Json::Value root;
-          Json::CharReaderBuilder builder;
-          Json::CharReader* reader(builder.newCharReader());
-          if (reader->parse(pos, pos + strlen(pos), &root, NULL)) {
-            pthread_mutex_lock(&self->data_lock_);
-            self->temp_ = (int)(round(root["temperature"].asFloat() * 10));
-
-            if ((time(NULL) - self->last_temps_time_) > (kMinPerBucket * 60)) {
-              self->last_temps_time_ = time(NULL);
-              self->last_temps_++;
-              if (self->last_temps_ == kTempBuckets)
-                self->last_temps_ = 0;
-              self->measures_[self->last_temps_] = 0;
-            } 
-            self->temps_[self->last_temps_] = (self->measures_[self->last_temps_] * self->temps_[self->last_temps_] + self->temp_) / (self->measures_[self->last_temps_] + 1);
-            self->hums_[self->last_temps_] = (self->measures_[self->last_temps_] * self->hums_[self->last_temps_] + (int)(round(root["humidity"].asFloat()))) / (self->measures_[self->last_temps_] + 1);
-            self->measures_[self->last_temps_]++;
-
-            self->last_temp_ = time(NULL);
-            bool night_mode = 
-                root["light"].asString().find("dark") != std::string::npos;
-            if (night_mode != self->night_mode_active_) {
-              self->night_mode_observations_++;
-              if (self->night_mode_observations_ >= 3) {
-                self->night_mode_active_ = night_mode;
-                self->SetBrightness();
-                self->night_mode_observations_ = 0;
-              }
-            } else {
-              self->night_mode_observations_ = 0;
-            }
-            pthread_mutex_unlock(&self->data_lock_);
-          }
-          delete reader;
+      self->last_temp_ = time(NULL);
+      bool night_mode = 
+          root["light"].asString().find("dark") != std::string::npos;
+      if (night_mode != self->night_mode_active_) {
+        self->night_mode_observations_++;
+        if (self->night_mode_observations_ >= 3) {
+          self->night_mode_active_ = night_mode;
+          self->SetBrightness();
+          self->night_mode_observations_ = 0;
         }
+      } else {
+        self->night_mode_observations_ = 0;
       }
-    }
+      pthread_mutex_unlock(&self->data_lock_);
+    }    
   }
-  close(sock);
-  delete[] server_reply;
+  connection->close();
 }
 
 // static
-void Clock::GetBedroomLights(Clock* self) {
+void Clock::GetBedroomLights(Clock* self, TcpConnection* connection) {
   const char request[] = "GET /cgi/action.py?action=bedroom_lights_status\n\n";
 
-  int sock;
-  struct sockaddr_in server;
-
-  //Create socket
-  sock = socket(AF_INET, SOCK_STREAM, 0);
-  if (sock == -1)
-    return;
-
-  server.sin_addr.s_addr = inet_addr("192.168.0.6");
-  server.sin_family = AF_INET;
-  server.sin_port = htons(8000);
-
-  char* server_reply = new char[1024];
-  if (connect(sock, (struct sockaddr*)&server, sizeof(server)) >= 0) {
-    if(send(sock, request, strlen(request), 0) >= 0) {
-      int len = recv(sock, server_reply, 1024, 0);
-      if(len >= 0) {
-        server_reply[len] = 0;
-        char *pos = strstr(server_reply, "{");
-        if (pos != NULL) {
-          Json::Value root;
-          Json::CharReaderBuilder builder;
-          Json::CharReader* reader(builder.newCharReader());
-          if (reader->parse(pos, pos + strlen(pos), &root, NULL)) {
-            pthread_mutex_lock(&self->data_lock_);
-            //self->reading_light_->SetState(root[self->reading_light_name_.c_str()]["state"]["any_on"].asBool() ? 1 : 0);
-            self->ceiling_light_->SetState(root["Bedroom"]["state"]["any_on"].asBool() ? 1 : 0);
-            pthread_mutex_unlock(&self->data_lock_);
-          }
-          delete reader;
-        }
-      }
+  if (connection->connect() && connection->send(request)) {
+    std::string output;
+    connection->receive(10, &output);
+    Json::Value root;
+    if (TcpConnection::getJson(output, &root)) {
+      pthread_mutex_lock(&self->data_lock_);
+      self->ceiling_light_->SetState(root["Bedroom"]["state"]["any_on"].asBool() ? 1 : 0);
+      pthread_mutex_unlock(&self->data_lock_);
     }
   }
-  close(sock);
-  delete[] server_reply;
+  connection->close();
 }
 
 void Clock::SetBrightness() {
@@ -548,8 +531,18 @@ void Clock::SetBrightness() {
 }
 
 // static
+bool Clock::InvokeAction(const std::string& action ) {
+  std::string request("GET /cgi/action.py?action=");
+  request.append(action);
+  TcpConnection connection("192.168.0.6", 8000);
+  if (connection.connect() && connection.send(request))
+    return true;
+  return false;
+}
+
+// static
 bool Clock::OnAlarmButton(void* data) {
-  Clock* self = reinterpret_cast<Clock*>(data);
+  /*Clock* self = reinterpret_cast<Clock*>(data);
 
   if (self->alarm_active_) {
     self->alarm_active_ = false;
@@ -557,7 +550,7 @@ bool Clock::OnAlarmButton(void* data) {
   } else {
     self->active_ = false;
     self->setting_hours_ = true;
-  }
+  }*/
   return true;
 }
 
@@ -577,22 +570,20 @@ bool Clock::OnCeilingLightButton(void* data) {
   Clock* self = reinterpret_cast<Clock*>(data);
 
   if (!self->night_mode_active_)
-    system("wget http://192.168.0.6:8000/cgi/action.py?action=bedroom_light -q -T 1 -t 1 -O - &");
+    InvokeAction("bedroom_light");
   else
-    system("wget http://192.168.0.6:8000/cgi/action.py?action=bedroom_night_light -q -T 1 -t 1 -O - &");
+    InvokeAction("bedroom_night_light");
+
   self->ceiling_light_->SetState((self->ceiling_light_->GetState() + 1) % 2);
   self->force_draw_ = true;
   return true;
 }
 
 // static
-bool Clock::OnReadingLightButton(void* data) {
+bool Clock::OnAllLightsButton(void* data) {
   Clock* self = reinterpret_cast<Clock*>(data);
 
   self->event_manager_->SetActiveTask(self->event_manager_->GetTask("Lights"));
-  /*system(self->reading_light_command_.c_str());
-  self->reading_light_->SetState((self->reading_light_->GetState() + 1) % 2);
-  self->force_draw_ = true;*/
   return true;
 }
 
@@ -610,5 +601,13 @@ bool Clock::OnTempButton(void* data) {
 
   self->show_temps_ = !self->show_temps_;
   self->force_draw_ = true;
+  return true;
+}
+
+// static
+bool Clock::OnTvButton(void* data) {
+  //Clock* self = reinterpret_cast<Clock*>(data);
+
+  InvokeAction("power");
   return true;
 }

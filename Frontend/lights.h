@@ -1,10 +1,12 @@
 #pragma once
 
+#include <auto_ptr.h>
 #include <pthread.h>
 #include <vector>
 
 #include "screen.h"
 #include "task_base.h"
+#include "tcp_connection.h"
 #include "touch_screen_controller.h"
 
 class Button;
@@ -22,6 +24,9 @@ class Lights : public TaskBase {
 
  private:
   void DrawUI();
+  
+  void GetHueLights();
+  void GetJulLights();
 
   static void GetLights(Lights* self);
 
@@ -35,4 +40,6 @@ class Lights : public TaskBase {
 
   std::vector<Button*> buttons_;
   Button* clock_;
+  
+  std::auto_ptr<TcpConnection> connection_;
 };

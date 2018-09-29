@@ -8,6 +8,7 @@
 #include "touch_screen_controller.h"
 
 class Button;
+class TcpConnection;
 
 class Clock : public TaskBase {
  public:
@@ -31,15 +32,18 @@ class Clock : public TaskBase {
     
   void SetBrightness();
   
-  static void GetBedroomTemp(Clock* self);
-  static void GetBedroomLights(Clock* self);
+  static void GetBedroomTemp(Clock* self, TcpConnection* connection);
+  static void GetBedroomLights(Clock* self, TcpConnection* connection);
 
   static bool OnAlarmButton(void* data);
   static bool OnNightModeButton(void* data);
   static bool OnCeilingLightButton(void* data);
-  static bool OnReadingLightButton(void* data);
+  static bool OnAllLightsButton(void* data);
   static bool OnRadioButton(void* data);
   static bool OnTempButton(void* data);
+  static bool OnTvButton(void* data);
+  
+  static bool InvokeAction(const std::string& action);
   
   pthread_t clock_thread_;
   pthread_t temp_thread_;
@@ -50,6 +54,7 @@ class Clock : public TaskBase {
 
   bool active_;
   bool force_draw_;
+
   bool alarm_active_;
   bool alarm_snoozed_;
   bool setting_hours_;
@@ -62,14 +67,14 @@ class Clock : public TaskBase {
   int normal_brightness_;
   int night_brightness_;
   std::string reading_light_command_;
-  std::string reading_light_name_;
 
   time_t last_tilt_;
   bool tilting_;
-  bool tilting_up_;
-  bool tilting_down_;
   int axis_;
 
+  long last_press_;
+  int press_count_;
+  
   int temp_;
   int *temps_;
   int *hums_;
@@ -80,10 +85,11 @@ class Clock : public TaskBase {
   time_t last_temp_;
 
   Button* net_button_;
-  Button* reading_light_;
+  Button* all_lights_;
   Button* ceiling_light_;
-  Button* alarm_;
+  //Button* alarm_;
   Button* night_mode_;
   Button* radio_;
   Button* temperature_;
+  Button* tv_button_;
 };

@@ -1,5 +1,6 @@
 #include "lights.h"
 
+#include <auto_ptr.h>
 #include <limits.h>
 #include <time.h>
 #include <stdlib.h>
@@ -7,13 +8,12 @@
 #include <sys/socket.h>
 #include <arpa/inet.h>
 
-#include "easybmp/EasyBMP.h"
-#include "json/json/json.h"
-#include "httpclient/HTTPClient.h"
-#include "event_manager.h"
 #include "brightness_controller.h"
-#include "screen.h"
 #include "button.h"
+#include "easybmp/EasyBMP.h"
+#include "event_manager.h"
+#include "json/json/json.h"
+#include "screen.h"
 
 namespace {
 
@@ -29,19 +29,19 @@ typedef struct {
 } LightDef;
 
 LightDef lights[] = {
-  { 64, 57, 1, "Hallway mirror", NULL, NULL},
-  { 105, 79, 0, "Hallway", NULL, NULL},
+  { 64, 57, 1, "hallway_mirror_light", NULL, NULL},
+  { 105, 79, 0, "hallway_light", NULL, NULL},
 
-  { 14, 126, 1, "Luna", NULL, NULL},
-  { 14, 175, 1, "Jul", NULL, NULL},
-  { 50, 149, 0, "Bedroom", NULL, NULL},
+  { 14, 126, 1, "luna_light", NULL, NULL},
+  { 14, 175, 1, "jul_light", NULL, NULL},
+  { 50, 149, 0, "bedroom_light", NULL, NULL},
 
-  { 229, 84, 0, "Living Room Dining", NULL, NULL},
-  { 248, 160, 0, "Living room", NULL, NULL},
-  { 283, 182, 2, "Couch", NULL, NULL},
+  { 229, 84, 0, "diningroom_light", NULL, NULL},
+  { 248, 160, 0, "livingroom_light", NULL, NULL},
+  { 283, 182, 2, "living_room_1", NULL, NULL},
 
   { 163, 149, 0, "office_top", NULL, NULL},
-  { 188, 124, 2, "Office", NULL, NULL}
+  { 188, 124, 2, "office_hue_light", NULL, NULL}
 };
 
 const int kNumButtons = 10;
@@ -68,6 +68,8 @@ Lights::Lights(EventManager* event_manager)
   }
   clock_ = new Button(320 - 37, 3, 34, 34, "/mnt/storage/jul/new_system/clock.bmp", 0 , 3);
   clock_->SetCallback(&Lights::OnClock, static_cast<void*>(this));
+  
+  connection_.reset(new TcpConnection("192.168.0.6", 8000));
 
   pthread_mutex_init(&data_lock_, NULL);
 
@@ -100,8 +102,7 @@ bool Lights::OnEventReceived(const input_event& ev) {
   return result;
 }
 
-void Lights::OnLooseFocus(TaskBase* new_focused_task) {
-}
+void Lights::OnLooseFocus(TaskBase* new_focused_task) { }
 
 void Lights::OnReceiveFocus() {
   BMP background;
@@ -116,7 +117,6 @@ void Lights::OnReceiveFocus() {
   GetLights(this);
 }
 
-
 // static
 void* Lights::DataThread(void* data) {
   Lights* self = reinterpret_cast<Lights*>(data);
@@ -130,7 +130,6 @@ void* Lights::DataThread(void* data) {
   return NULL;
 }
 
-
 void Lights::DrawUI() {
   if (!HasFocus())
     return;
@@ -142,119 +141,68 @@ void Lights::DrawUI() {
   gScreen->FlipBuffer();
 }
 
+void Lights::GetHueLights() {
+  const char request[] = "GET /cgi/action.py?action=hue_lights_status\n\n";
+
+  if (connection_->connect() && connection_->send(request)) {
+    std::string output;
+    connection_->receive(10, &output);
+    Json::Value root;
+    if (TcpConnection::getJson(output, &root)) {
+      pthread_mutex_lock(&data_lock_);
+      Json::ValueConstIterator iter = root.begin();
+      for (; iter != root.end(); ++iter) {
+        for (int i = 0; i < kNumButtons; ++i) {
+          if (lights[i].name == iter.name())
+            lights[i].button->SetState((*iter)["state"]["any_on"].asBool() ? 1 : 0);
+        }
+      }
+      DrawUI();
+      pthread_mutex_unlock(&data_lock_);
+    }
+  }
+  connection_->close();
+}
+
+void Lights::GetJulLights() {
+  const char request[] = "GET /cgi/action.py?action=living_room_status\n\n";
+
+  if (connection_->connect() && connection_->send(request)) {
+    std::string output;
+    connection_->receive(10, &output);
+    Json::Value root;
+    if (TcpConnection::getJson(output, &root)) {
+      pthread_mutex_lock(&data_lock_);
+      for (int i = 0; i < kNumButtons; ++i) {
+        if (lights[i].name == "living_room_1")
+          lights[i].button->SetState(root["living_room_1"]["s1"].asBool() ? 1 : 0);
+      }
+      DrawUI();
+      pthread_mutex_unlock(&data_lock_);
+    }
+  }
+  connection_->close();
+}
+
 // static
 void Lights::GetLights(Lights* self) {
-  HTTPClient client;
-  char* server_reply = new char[4096];
-  
-  HTTPText data(server_reply, 4096);
-  if (HTTP_OK == client.get("http://192.168.0.6/cgi/action.py?action=get_hue_groups", &data)) {
-    int len = strlen(server_reply);
-    if(len >= 0) {
-      std::cout << len << " " << server_reply << std::endl;
-      server_reply[len] = 0;
-      char *pos = strstr(server_reply, "{");
-      if (pos != NULL) {
-        Json::Value root;
-        Json::CharReaderBuilder builder;
-        Json::CharReader* reader(builder.newCharReader());
-        if (reader->parse(pos, pos + strlen(pos), &root, NULL)) {
-          pthread_mutex_lock(&self->data_lock_);
-          Json::ValueConstIterator iter = root.begin();
-          for (; iter != root.end(); ++iter) {
-            for (int i = 0; i < kNumButtons; ++i) {
-              if (lights[i].name == (*iter)["name"].asString()) {
-                lights[i].button->SetState((*iter)["state"]["any_on"].asBool() ? 1 : 0);
-              }
-            }
-          }
-          self->DrawUI();
-          pthread_mutex_unlock(&self->data_lock_);
-        }
-        delete reader;
-      }
-    }
-  }
-/*  
-  const char request[] = "GET /cgi/action.py?action=get_hue_groups\n\n";
-
-  int sock;
-  struct sockaddr_in server;
-
-  //Create socket
-  sock = socket(AF_INET, SOCK_STREAM, 0);
-  if (sock == -1)
-    return;
-
-  server.sin_addr.s_addr = inet_addr("192.168.0.6");
-  server.sin_family = AF_INET;
-  server.sin_port = htons(8000);
-
-  if (connect(sock, (struct sockaddr*)&server, sizeof(server)) >= 0) {
-    if(send(sock, request, strlen(request), 0) >= 0) {
-      int len = recv(sock, server_reply, 4096, MSG_WAITALL);
-      if(len >= 0) {
-        server_reply[len] = 0;
-        char *pos = strstr(server_reply, "{");
-        if (pos != NULL) {
-          Json::Value root;
-          Json::CharReaderBuilder builder;
-          Json::CharReader* reader(builder.newCharReader());
-          if (reader->parse(pos, pos + strlen(pos), &root, NULL)) {
-            pthread_mutex_lock(&self->data_lock_);
-            Json::ValueConstIterator iter = root.begin();
-            for (; iter != root.end(); ++iter) {
-              for (int i = 0; i < kNumButtons; ++i) {
-                if (lights[i].name == (*iter)["name"].asString()) {
-                  lights[i].button->SetState((*iter)["state"]["any_on"].asBool() ? 1 : 0);
-                }
-              }
-            }
-            self->DrawUI();
-            pthread_mutex_unlock(&self->data_lock_);
-          }
-          delete reader;
-        }
-      }
-    }
-  }
-  close(sock);*/
-  delete[] server_reply;
+  self->GetHueLights();
+  self->GetJulLights();
 }
 
 // static
 bool Lights::OnButton(void* data) {
   LightDef* light = reinterpret_cast<LightDef*>(data);
-
   light->button->SetState((light->button->GetState() + 1) % 2);
-
-  char request[80];
-  sprintf(request, "GET /cgi/action.py?action=set_hue_group_%s\n\n", light->name.c_str());  
-
-  int sock;
-  struct sockaddr_in server;
-
-  //Create socket
-  sock = socket(AF_INET, SOCK_STREAM, 0);
-  if (sock == -1)
-    return true;
-
-  server.sin_addr.s_addr = inet_addr("192.168.0.6");
-  server.sin_family = AF_INET;
-  server.sin_port = htons(8000);
-  
-  char* server_reply = new char[1024];
-  if (connect(sock, (struct sockaddr*)&server, sizeof(server)) >= 0) {
-    if(send(sock, request, strlen(request), 0) >= 0)
-      recv(sock, server_reply, 1024, 0);
-  }
-  close(sock);
-  delete[] server_reply;
-  
   light->instance->DrawUI();
+  
+  char request[100];
+  sprintf(request, "GET cgi/action.py?action=%s", light->name.c_str());  
+  TcpConnection connection("192.168.0.6", 8000);
+  connection.connect();
+  connection.send(request);
   return true;
 }
-
 
 // static
 bool Lights::OnClock(void* data) {

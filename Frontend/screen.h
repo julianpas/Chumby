@@ -26,7 +26,7 @@ const char kDigits[14][8] = {{0,60,66,74,82,66,60,0},  // 0
 const Color kBlack(0,0,0);
 const Color kWhite(255,255,255);
 const Color kBlue(100,100,255);
-const Color kGreen(100,255,100);
+const Color kGreen(150,255,50);
 const Color kCyan(100,255,255);
 const Color kGrey(100,100,100);
 

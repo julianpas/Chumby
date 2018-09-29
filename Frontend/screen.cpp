@@ -67,7 +67,7 @@ void ScreenBuffer::DrawDigit(int x, int y, int size, const Color& c, int d) {
   for (int i = 0;i < 8;i++) {
     for (int j = 0;j < 8;j++) {
       if (kDigits[d][i] & (1 << (7-j)))
-	DrawRectangle(x + j*size, y + i*size, size, size, c);
+        DrawRectangle(x + j*size, y + i*size, size, size, c);
     }
   }
 }
