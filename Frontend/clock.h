@@ -76,6 +76,7 @@ class Clock : public TaskBase {
   int press_count_;
   
   int temp_;
+  int out_temp_;
   int *temps_;
   int *hums_;
   int *measures_;

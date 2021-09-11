@@ -50,6 +50,7 @@ Clock::Clock(EventManager* event_manager)
     last_press_(0),
     press_count_(0),
     temp_(0),
+    out_temp_(0),
     last_temps_(0),
     show_temps_(false),
     last_temp_(0) {
@@ -287,18 +288,25 @@ void* Clock::ClockThread(void* data) {
         gScreen->ClearRectangle(0,kDateLine,319,40);
         gScreen->DrawDigit(0, kDateLine, kDateSize, kWhite, ltm->tm_mday / 10);
         gScreen->DrawDigit(7 *kDateSize, kDateLine, kDateSize, kWhite, ltm->tm_mday % 10);
-        gScreen->DrawDigit(12 * kDateSize, kDateLine, kDateSize, kWhite, 11);
-        gScreen->DrawDigit(18 * kDateSize, kDateLine, kDateSize, kWhite, ltm->tm_mon / 10);
-        gScreen->DrawDigit(25 * kDateSize, kDateLine, kDateSize, kWhite, ltm->tm_mon % 10);
-        gScreen->DrawDigit(30 * kDateSize, kDateLine, kDateSize, kWhite, 11);
-        gScreen->DrawDigit(36 * kDateSize, kDateLine, kDateSize, kWhite, (ltm->tm_year / 10)% 10);
-        gScreen->DrawDigit(43 * kDateSize, kDateLine, kDateSize, kWhite, ltm->tm_year % 10);
+        //gScreen->DrawDigit(12 * kDateSize, kDateLine, kDateSize, kWhite, 11);
+        //gScreen->DrawDigit(18 * kDateSize, kDateLine, kDateSize, kWhite, ltm->tm_mon / 10);
+        //gScreen->DrawDigit(25 * kDateSize, kDateLine, kDateSize, kWhite, ltm->tm_mon % 10);
+        //gScreen->DrawDigit(30 * kDateSize, kDateLine, kDateSize, kWhite, 11);
+        //gScreen->DrawDigit(36 * kDateSize, kDateLine, kDateSize, kWhite, (ltm->tm_year / 10)% 10);
+        //gScreen->DrawDigit(43 * kDateSize, kDateLine, kDateSize, kWhite, ltm->tm_year % 10);
 
         if (self->temp_ > 0) {
           gScreen->DrawDigit(60 * kDateSize, kDateLine, kDateSize, kWhite, self->temp_ / 100);
           gScreen->DrawDigit(67 * kDateSize, kDateLine, kDateSize, kWhite, (self->temp_ % 100)/ 10);
           gScreen->DrawDigit(74 * kDateSize, kDateLine, 2, kWhite, self->temp_ % 10);
         }
+
+        if (self->out_temp_ < 0)
+          gScreen->DrawDigit((abs(self->out_temp_) > 999 ? 25 : 31) * kDateSize, kDateLine, kDateSize, kWhite, 14);
+        if (abs(self->out_temp_) > 999)
+          gScreen->DrawDigit(31 * kDateSize, kDateLine, kDateSize, kWhite, abs(self->out_temp_ / 1000));
+        gScreen->DrawDigit(38 * kDateSize, kDateLine, kDateSize, kWhite, abs(self->out_temp_ % 1000) / 100);
+        gScreen->DrawDigit(45 * kDateSize, kDateLine, 2, kWhite, abs(self->out_temp_ % 100) / 10);
 
         self->DrawUI();
         needs_draw = true;
@@ -463,6 +471,7 @@ void Clock::GetBedroomTemp(Clock* self, TcpConnection* connection) {
     if (TcpConnection::getJson(output, &root)) {
       pthread_mutex_lock(&self->data_lock_);
       self->temp_ = (int)(round(root["temperature"].asFloat() * 10));
+      self->out_temp_ = root["outside_temp"].asInt();
 
       if ((time(NULL) - self->last_temps_time_) > (kMinPerBucket * 60)) {
         self->last_temps_time_ = time(NULL);
