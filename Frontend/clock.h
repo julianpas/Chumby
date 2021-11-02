@@ -67,6 +67,7 @@ class Clock : public TaskBase {
   int normal_brightness_;
   int night_brightness_;
   std::string reading_light_command_;
+  std::string extra_command_;
 
   time_t last_tilt_;
   bool tilting_;

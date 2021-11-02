@@ -10,7 +10,7 @@
 
 #include "event_manager.h"
 #include "screen.h"
-
+/*
 const int kXFactor = 10;
 const int kXOffset = 1500;
 const int kXDivisor = 118;
@@ -20,6 +20,7 @@ const int kYOffset = 28000;
 const int kYDivisor = 1515;
 
 float params[6] = {1, 0, 0, 0, 1, 0};
+*/
 
 TouchScreenController::TouchScreenController(EventManager* event_manager) 
     : TaskBase(event_manager) {
@@ -27,11 +28,14 @@ TouchScreenController::TouchScreenController(EventManager* event_manager)
   if (f) {
     std::cout << "Loaded TS params : ";
     for(int i = 0; i < 6; ++i) {
-      fscanf(f, "%f", &params[i]);
-      std::cout << params[i] << " ";
+      fscanf(f, "%f", &params_[i]);
+      std::cout << params_[i] << " ";
     }
     fclose(f);
     std::cout << std::endl;
+  } else {
+    bzero(params_, 6 * sizeof(float));
+    params_[0] = params_[4] = 1.;
   }
 }
 
@@ -59,8 +63,8 @@ bool TouchScreenController::OnEventReceived(const input_event& ev) {
     touched_ = ev.value;
   } else if (ev.type == EV_SYN && ev.code == SYN_REPORT) {
     if (touched_) {
-      current_x_ = params[0] * x + params[1] * y + params[2];
-      current_y_ = params[3] * x + params[4] * y + params[5];
+      current_x_ = params_[0] * x + params_[1] * y + params_[2];
+      current_y_ = params_[3] * x + params_[4] * y + params_[5];
       /*if (event_manager_->GetActiveTask() == this) {
         gScreen->PutPixel(current_x_, current_y_, Color(255, 228, 228));
         gScreen->FlipBuffer();

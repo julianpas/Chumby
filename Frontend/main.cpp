@@ -14,15 +14,21 @@
 #include "screen.h"
 #include "touch_screen_controller.h"
 
-int main(int argc, char **argv) {
-  gScreen = new Screen("/dev/fb0", 320, 240, 2);
+const char wheel_dev[] = "/dev/input/by-id/soc-noserial-event-joystick";
+const char button_dev[] = "/dev/input/by-id/soc-noserial-event-kbd";
+const char touch_dev[] = "/dev/input/by-id/soc-noserial-event-ts";
+const char fb_dev[] = "/dev/fb0";
 
+int main(int argc, char **argv) {
   MessageLoop message_loop(std::auto_ptr<MessageQueue>(new MessageQueue()));
 
-  InputDeviceHandler wheel(&message_loop, "/dev/input/by-id/soc-noserial-event-joystick");
-  InputDeviceHandler button(&message_loop, "/dev/input/by-id/soc-noserial-event-kbd");
-  InputDeviceHandler touch(&message_loop, "/dev/input/by-id/soc-noserial-event-ts");
+  gScreen = new Screen("/dev/fb0", 320, 240, 2);
+
+  InputDeviceHandler wheel(&message_loop, wheel_dev);
+  InputDeviceHandler button(&message_loop, button_dev);
+  InputDeviceHandler touch(&message_loop, touch_dev);
   AccelHandler accel(&message_loop);
+
   EventManager manager(&message_loop);
 
   //CalibDisplay calib(&manager);
@@ -38,8 +44,8 @@ int main(int argc, char **argv) {
   Clock clock(&manager);
   manager.AddTask(&clock);
 
-  Lights lights(&manager);
-  manager.AddTask(&lights);
+  //Lights lights(&manager);
+  //manager.AddTask(&lights);
   
   
   //Mario mario(&manager);

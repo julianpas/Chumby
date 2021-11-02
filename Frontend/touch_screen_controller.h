@@ -19,4 +19,6 @@ class TouchScreenController : public TaskBase {
   int current_x_;
   int current_y_;
   int touched_;
+
+  float params_[6];
 };

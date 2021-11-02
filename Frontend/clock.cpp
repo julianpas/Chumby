@@ -421,9 +421,14 @@ void Clock::ReadSettings() {
     if (cmd[strlen(cmd)-1] == '\n')
       cmd[strlen(cmd) - 1] = 0;
     reading_light_command_ = cmd;
+    fgets(cmd, 400, f);
+    if (cmd[strlen(cmd)-1] == '\n')
+      cmd[strlen(cmd) - 1] = 0;
+    extra_command_ = cmd;
     fscanf(f, "%d %d", &normal_brightness_, &night_brightness_);
     fclose(f);
     std::cout << "Settings:\n\tReading light command: " << reading_light_command_ 
+              << "\n\tExtra command: " << extra_command_ 
               << "\n\tDefault normal brightness level: " << normal_brightness_ 
               << "\n\tDark brightness level: " << night_brightness_ << std::endl;
   }
@@ -615,8 +620,8 @@ bool Clock::OnTempButton(void* data) {
 
 // static
 bool Clock::OnTvButton(void* data) {
-  //Clock* self = reinterpret_cast<Clock*>(data);
+  Clock* self = reinterpret_cast<Clock*>(data);
 
-  InvokeAction("power");
+  InvokeAction(self->extra_command_);
   return true;
 }

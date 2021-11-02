@@ -33,6 +33,10 @@ void EventManager::RemoveTask(TaskBase* task) {
 }
 
 void EventManager::SetActiveTask(TaskBase* task) {
+  if (!task) {
+    std::cout << "Can't active null task." << std::endl;
+    return;
+  }
   if (!tasks_.empty() && tasks_.front() != task) {
     tasks_.front()->OnLooseFocus(NULL);
     tasks_.remove(task);
