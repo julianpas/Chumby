@@ -44,8 +44,12 @@ int main(int argc, char **argv) {
   Clock clock(&manager);
   manager.AddTask(&clock);
 
-  //Lights lights(&manager);
-  //manager.AddTask(&lights);
+  Lights lights_og(&manager, "og");
+  manager.AddTask(&lights_og);
+  Lights lights_eg(&manager, "eg");
+  manager.AddTask(&lights_eg);
+  Lights lights_ug(&manager, "ug");
+  manager.AddTask(&lights_ug);
   
   
   //Mario mario(&manager);

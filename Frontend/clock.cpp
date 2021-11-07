@@ -597,7 +597,7 @@ bool Clock::OnCeilingLightButton(void* data) {
 bool Clock::OnAllLightsButton(void* data) {
   Clock* self = reinterpret_cast<Clock*>(data);
 
-  self->event_manager_->SetActiveTask(self->event_manager_->GetTask("Lights"));
+  self->event_manager_->SetActiveTask(self->event_manager_->GetTask("Lights og"));
   return true;
 }
 

@@ -1,0 +1,9 @@
+8
+73 145 0 dinningroom_light
+120 63 0 livingroom_light
+75 66 1 livingroom_tv_light
+204 63 0 readingroom_light
+182 37 0 couchlamp_light
+214 130 0 hallway_light
+138 105 0 hallway_light
+38 93 0 backyard_light
