@@ -73,11 +73,11 @@ Lights::Lights(EventManager* event_manager, const std::string& level)
   }
   clock_ = new Button(320 - 37, 3, 34, 34, "/mnt/storage/jul/new_system/clock.bmp", 0, 3);
   clock_->SetCallback(&Lights::OnClock, static_cast<void*>(this));
-  og_ = new Button(278, 118, 20, 26, "/mnt/storage/jul/new_system/og_but.bmp", level == "og" ? 1 : 0, 3);
+  og_ = new Button(274, 118, 20, 26, "/mnt/storage/jul/new_system/og_but.bmp", level == "og" ? 1 : 0);
   og_->SetCallback(&Lights::OnOG, static_cast<void*>(this));
-  eg_ = new Button(278, 157, 20, 26, "/mnt/storage/jul/new_system/eg_but.bmp", level == "eg" ? 1 : 0, 3);
+  eg_ = new Button(274, 157, 20, 26, "/mnt/storage/jul/new_system/eg_but.bmp", level == "eg" ? 1 : 0);
   eg_->SetCallback(&Lights::OnEG, static_cast<void*>(this));
-  ug_ = new Button(278, 195, 20, 26, "/mnt/storage/jul/new_system/ug_but.bmp", level == "ug" ? 1 : 0, 3);
+  ug_ = new Button(274, 195, 20, 26, "/mnt/storage/jul/new_system/ug_but.bmp", level == "ug" ? 1 : 0);
   ug_->SetCallback(&Lights::OnUG, static_cast<void*>(this));
   
   connection_.reset(new TcpConnection("192.168.0.6", 8000));
@@ -123,6 +123,9 @@ bool Lights::OnEventReceived(const input_event& ev) {
       result |= buttons_[i]->OnPress(touch_controller_->GetX(), touch_controller_->GetY());
     }
     result |= clock_->OnPress(touch_controller_->GetX(), touch_controller_->GetY());
+    result |= og_->OnPress(touch_controller_->GetX(), touch_controller_->GetY());
+    result |= eg_->OnPress(touch_controller_->GetX(), touch_controller_->GetY());
+    result |= ug_->OnPress(touch_controller_->GetX(), touch_controller_->GetY());
   } else if (ev.type == EV_KEY && ev.code == KEY_ENTER && ev.value == 0) {
   } else if (ev.type == EV_REL && ev.code == REL_WHEEL) {
   } //else if (ev.type == EV_ACCEL) { } 
@@ -167,6 +170,9 @@ void Lights::DrawUI() {
   for (size_t i = 0; i < buttons_.size(); ++i)
     buttons_[i]->Draw();
   clock_->Draw();
+  og_->Draw();
+  eg_->Draw();
+  ug_->Draw();
   gScreen->FlipBuffer();
 }
 
@@ -205,7 +211,7 @@ bool Lights::OnButton(void* data) {
   light->instance->DrawUI();
   
   char request[100];
-  sprintf(request, "GET cgi/action.py?action=%s", light->name.c_str());  
+  sprintf(request, "GET /cgi/action.py?action=%s", light->name.c_str());  
   TcpConnection connection("192.168.0.6", 8000);
   connection.connect();
   connection.send(request);

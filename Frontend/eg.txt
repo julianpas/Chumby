@@ -6,4 +6,4 @@
 182 37 0 couchlamp_light
 214 130 0 hallway_light
 138 105 0 hallway_light
-38 93 0 backyard_light
+38 83 0 backyard_light
