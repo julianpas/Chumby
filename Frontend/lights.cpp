@@ -18,34 +18,7 @@
 namespace {
 
 int max(const int a, const int b) { return a > b ? a : b; }
-/*
-typedef struct {
-  LightDef(int x, int y, int image, const std::string& name)
-    : x(x), y(y), image(image), name(name), instance(nullptr), button(nullptr) {}
-  int x;
-  int y;
-  int image;
-  std::string name;
-  Lights* instance;
-  Button* button;
-} LightDef;
 
-LightDef lights[] = {
-  { 105, 79, 0, "hallway_light", NULL, NULL},
-
-  { 14, 126, 1, "luna_light", NULL, NULL},
-  { 14, 175, 1, "jul_light", NULL, NULL},
-  { 50, 149, 0, "bedroom_light", NULL, NULL},
-
-  { 229, 84, 0, "diningroom_light", NULL, NULL},
-  { 248, 160, 0, "livingroom_light", NULL, NULL},
-  { 283, 182, 2, "livingroom_tv_light", NULL, NULL},
-
-  { 188, 124, 2, "office_hue_light", NULL, NULL}
-};
-
-const int kNumButtons = sizeof(lights) / sizeof(LightDef);
-*/
 std::string light_icons[3] = {
   "/mnt/storage/jul/new_system/smallbulb.bmp",
   "/mnt/storage/jul/new_system/rsmallbulb.bmp",

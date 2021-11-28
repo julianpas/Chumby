@@ -288,12 +288,6 @@ void* Clock::ClockThread(void* data) {
         gScreen->ClearRectangle(0,kDateLine,319,40);
         gScreen->DrawDigit(0, kDateLine, kDateSize, kWhite, ltm->tm_mday / 10);
         gScreen->DrawDigit(7 *kDateSize, kDateLine, kDateSize, kWhite, ltm->tm_mday % 10);
-        //gScreen->DrawDigit(12 * kDateSize, kDateLine, kDateSize, kWhite, 11);
-        //gScreen->DrawDigit(18 * kDateSize, kDateLine, kDateSize, kWhite, ltm->tm_mon / 10);
-        //gScreen->DrawDigit(25 * kDateSize, kDateLine, kDateSize, kWhite, ltm->tm_mon % 10);
-        //gScreen->DrawDigit(30 * kDateSize, kDateLine, kDateSize, kWhite, 11);
-        //gScreen->DrawDigit(36 * kDateSize, kDateLine, kDateSize, kWhite, (ltm->tm_year / 10)% 10);
-        //gScreen->DrawDigit(43 * kDateSize, kDateLine, kDateSize, kWhite, ltm->tm_year % 10);
 
         if (self->temp_ > 0) {
           gScreen->DrawDigit(60 * kDateSize, kDateLine, kDateSize, kWhite, self->temp_ / 100);
@@ -473,7 +467,8 @@ void Clock::GetBedroomTemp(Clock* self, TcpConnection* connection) {
     std::string output;
     connection->receive(10, &output);
     Json::Value root;
-    if (TcpConnection::getJson(output, &root)) {
+    if (TcpConnection::getJson(output, &root) && root.isMember("temperature") &&
+        root.isMember("outside_temp") && root.isMember("humiduty") && root.isMember("light")) {
       pthread_mutex_lock(&self->data_lock_);
       self->temp_ = (int)(round(root["temperature"].asFloat() * 10));
       self->out_temp_ = root["outside_temp"].asInt();
@@ -522,7 +517,7 @@ void Clock::GetBedroomLights(Clock* self, TcpConnection* connection) {
     std::string output;
     connection->receive(10, &output);
     Json::Value root;
-    if (TcpConnection::getJson(output, &root)) {
+    if (TcpConnection::getJson(output, &root) && root.isMember("Bedroom")) {
       pthread_mutex_lock(&self->data_lock_);
       self->ceiling_light_->SetState(root["Bedroom"]["state"]["any_on"].asBool() ? 1 : 0);
       pthread_mutex_unlock(&self->data_lock_);

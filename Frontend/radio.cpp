@@ -7,15 +7,15 @@
 #include "screen.h"
 
 namespace {
-
-const int kNumButtons = 2;
-  
-ButtonDef buttons[kNumButtons] = {
+ 
+ButtonDef buttons[] = {
   { 20, 40, 130, 90, 0, 0, "/mnt/storage/jul/new_system/zrock.bmp", "http://46.10.150.243/z-rock.mp3", NULL, NULL, NULL},
   //{ 170, 40, 130, 90, 0, 0, "/mnt/storage/jul/new_system/starfm.bmp", "http://pulsar.atlantis.bg:8000/starfm", NULL, NULL, NULL},
   { 20, 140, 130, 90, 0, 0, "/mnt/storage/jul/new_system/darik.bmp", "http://darikradio.by.host.bg:8000/S2-128", NULL, NULL, NULL},
   //{ 170, 140, 130, 90, 0, 0, "/mnt/storage/jul/new_system/foundation.bmp", "http://94.26.63.158:8000/;?type=http&nocache=808", NULL, NULL, NULL}
 };
+
+const int kNumButtons = sizeof(buttons) / sizeof(ButtonDef);
 
 }  // namespace
 
