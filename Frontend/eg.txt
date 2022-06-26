@@ -1,9 +1,14 @@
-8
-73 145 0 dinningroom_light
-120 63 0 livingroom_light
-75 66 1 livingroom_tv_light
-204 63 0 readingroom_light
-182 37 0 couchlamp_light
-214 130 0 hallway_light
-138 105 0 hallway_light
-38 83 0 backyard_light
+13
+66 70 0 guestroom_light
+130 96 0 hallway_light
+200 96 0 hallway_light
+196 58 0 bathroom_light
+198 37 0 bathroom_mirror_light
+230 150 2 kitchen_countertop_light
+203 150 0 kitchen_light
+150 150 0 dinningroom_light
+75 150 0 livingroom_light
+45 150 2 livingroom_tv_light
+117 117 0 couchlamp_light
+241 106 1 backyard_light
+100 200 0 backyard_light

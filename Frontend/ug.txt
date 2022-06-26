@@ -1,1 +1,8 @@
-0
+7
+68 70 0 workshop_light
+130 96 0 hallway_ug_light
+105 44 1 hallway_ug_light
+196 70 0 machineroom_light
+85 150 0 mancave_light
+190 150 0 cellar_light
+240 160 1 garage_light

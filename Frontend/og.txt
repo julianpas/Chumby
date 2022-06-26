@@ -1,7 +1,14 @@
-6
-40 50 1 luna_light
-40 85 1 jul_light
-80 68 0 bedroom_light
-40 140 1 office_desk_light
-90 140 2 office_hue_light
-90 165 2 office_hue_light
+13
+55 91 0 closet_light
+40 130 1 luna_light
+40 160 1 jul_light
+70 150 0 bedroom_light
+106 150 1 office_desk_light
+138 150 0 office_light
+204 150 0 readingroom_light
+213 65 0 den_light
+165 60 0 wc_light
+148 96 0 hallway_og_light
+68 53 0 master_bathroom_light
+80 37 0 master_bathroom_mirror_light
+99 187 0 balcony_light
