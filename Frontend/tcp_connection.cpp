@@ -6,6 +6,8 @@
 #include <sys/socket.h>
 #include <unistd.h>
 
+#include <iostream>
+
 TcpConnection::TcpConnection(const std::string& ip, int port) : sock_(-1), buffer_(NULL) {
   server_.sin_addr.s_addr = inet_addr(ip.c_str());
   server_.sin_family = AF_INET;
@@ -45,8 +47,9 @@ int TcpConnection::receive(size_t maxsizekb, std::string* output) {
   int len = 0;
   output->clear();
   do {
-    len = recv(sock_, buffer_, 1024, 0);
-    output->append(buffer_, len);
+    len = ::recv(sock_, buffer_, 1024, 0);
+    if (len > 0)
+      output->append(buffer_, len);
   } while(len > 0 && output->size() <= maxsizekb * 1024);
   return output->size();
 }
@@ -69,7 +72,6 @@ bool TcpConnection::getJson(const std::string data, Json::Value* root) {
   } else {
     pos += 4;
   }
-
   Json::CharReaderBuilder builder;
   std::auto_ptr<Json::CharReader> reader(builder.newCharReader());
   return reader->parse(data.data() + pos, data.data() + data.size(), root, NULL);

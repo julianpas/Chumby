@@ -19,4 +19,4 @@ clean:
 	rm *.o easybmp/*.o accel/*.o sqlite/*.o json/*.o chumby
 
 deploy: $(EXECUTABLE)
-	scp chumby root@192.168.0.50:/mnt/storage/jul/new_system/
+	scp chumby root@192.168.2.71:/mnt/storage/jul/new_system/

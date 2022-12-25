@@ -37,6 +37,7 @@ const char config_file[] = "/mnt/storage/jul/clock_settings.txt";
 
 Clock::Clock(EventManager* event_manager) 
     : TaskBase(event_manager),
+    temp_thread_(0),
     active_(false),
     alarm_active_(false),
     alarm_snoozed_(false),
@@ -90,11 +91,11 @@ Clock::Clock(EventManager* event_manager)
   pthread_attr_setstacksize(&thread_attr , PTHREAD_STACK_MIN + 0x2000);
   pthread_create(&clock_thread_, &thread_attr, 
                  &Clock::ClockThread, static_cast<void*>(this));
-  pthread_attr_t temp_thread_attr;
-  pthread_attr_init(&temp_thread_attr);
-  pthread_attr_setstacksize(&temp_thread_attr , PTHREAD_STACK_MIN + 0x2000);
-  pthread_create(&temp_thread_, &temp_thread_attr, 
-                 &Clock::DataThread, static_cast<void*>(this));
+  //pthread_attr_t temp_thread_attr;
+  //pthread_attr_init(&temp_thread_attr);
+  //pthread_attr_setstacksize(&temp_thread_attr , PTHREAD_STACK_MIN + 0x2000);
+  //pthread_create(&temp_thread_, &temp_thread_attr, 
+  //               &Clock::DataThread, static_cast<void*>(this));
 }
 
 std::string Clock::GetName() { return std::string("Clock"); }
@@ -441,6 +442,19 @@ void Clock::DrawUI() {
   time_t now = time(NULL);
   net_button_->SetState((now - last_temp_) > 120 ? 0 : 1);
   net_button_->Draw();
+  // Restart thread if needed.
+  if (now - last_temp_ > 600) {
+    std::cout << "Restarting network thread due to 10min of inactivity" << std::endl;
+    last_temp_ = now - 130;
+    if (temp_thread_)
+      pthread_cancel(temp_thread_);
+    pthread_attr_t temp_thread_attr;
+    pthread_attr_init(&temp_thread_attr);
+    pthread_attr_setstacksize(&temp_thread_attr , PTHREAD_STACK_MIN + 0x2000);
+    pthread_create(&temp_thread_, &temp_thread_attr, 
+                  &Clock::DataThread, static_cast<void*>(this));
+
+  }
 }
 
 void Clock::DrawAlarmTime() {
@@ -468,7 +482,7 @@ void Clock::GetBedroomTemp(Clock* self, TcpConnection* connection) {
     connection->receive(10, &output);
     Json::Value root;
     if (TcpConnection::getJson(output, &root) && root.isMember("temperature") &&
-        root.isMember("outside_temp") && root.isMember("humiduty") && root.isMember("light")) {
+        root.isMember("outside_temp") && root.isMember("humidity") && root.isMember("light")) {
       pthread_mutex_lock(&self->data_lock_);
       self->temp_ = (int)(round(root["temperature"].asFloat() * 10));
       self->out_temp_ = root["outside_temp"].asInt();
